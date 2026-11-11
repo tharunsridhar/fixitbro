@@ -71,3 +71,5 @@ Set `JWT_SECRET` first. The app runs on http://localhost:4000. Add demo data wit
 ## Notes
 - Prices are in rupees. Times are stored in UTC and shown in the provider's timezone.
 - Notifications are in-app only. There are no payments or emails.
+
+<!-- last updated: 2026-11-11 -->
