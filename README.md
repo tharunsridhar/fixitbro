@@ -1,5 +1,7 @@
 # FixItBro
 
+[![CI](https://github.com/tharunsridhar/fixitbro/actions/workflows/ci.yml/badge.svg)](https://github.com/tharunsridhar/fixitbro/actions/workflows/ci.yml)
+
 A booking site for local services like plumbing, electrical work and cleaning. Customers pick a free time slot and book it. Providers set their working hours and accept jobs. Admins keep things in order.
 
 Live demo: https://fixitbro.onrender.com
@@ -51,12 +53,32 @@ Password for all of them is `Password123!`
 ```bash
 npm test
 ```
-Uses a separate `fixitbro_test` database and wipes it each run, so never point it at real data.
+- 68 tests across 9 files, run in CI on every push.
+- Uses a separate `fixitbro_test` database and wipes it each run, so never point it at real data.
 
 ## How double booking is stopped
 - The server rechecks the slot when you book, and bookings for one provider are processed one at a time.
 - On top of that, PostgreSQL itself rejects overlapping bookings for the same provider, so two people clicking at the same moment cannot both win.
 - Full explanation: [docs/concurrency.md](docs/concurrency.md)
+
+## Load test
+Same provider, same slot, N customers booking at the same moment (6 runs each, after a warm-up).
+
+| Concurrent requests | Succeeded | Rejected (409) | Overlapping bookings | p50 | p95 |
+|---|---|---|---|---|---|
+| 20 | 1 | 19 | 0 | 96-152 ms | 134-200 ms |
+| 50 | 1 | 49 | 0 | 211-334 ms | 312-478 ms |
+| 100 | 1 | 99 | 0 | 513-613 ms | 750-914 ms |
+
+- Across 20 runs (2 of them warm-ups, left out of the table), exactly one request won every time and the database held zero overlapping bookings.
+- Ran on a local dev machine (i7-8665U, 16 GB RAM, Windows 11) with the API and Postgres 16 both in Docker. The load test client shared the machine.
+- Latency still grows with N, because requests for one slot are handled one after another.
+- To reproduce, start the API on port 4001 against a test database with `AUTH_RATE_MAX`, `API_RATE_MAX`, `MAX_USERS`, `MAX_BOOKINGS` and `DAILY_REQUEST_BUDGET` set high, seed it, then:
+
+```bash
+cd server
+DATABASE_URL=<test db url> node scripts/loadtest.mjs --race 20,50,100 http://localhost:4001
+```
 
 ## Docker
 ```bash
