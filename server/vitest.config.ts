@@ -13,5 +13,14 @@ export default defineConfig({
       API_RATE_MAX: "100000",
       PENDING_TTL_MINUTES: "1440",
     },
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      // index.ts only starts the listener and the background timers
+      exclude: ["src/index.ts"],
+      reporter: ["text-summary", "text"],
+      // A floor, not a target: the build fails if coverage drops clearly below where it is today.
+      thresholds: { statements: 88, lines: 90, functions: 88, branches: 78 },
+    },
   },
 });

@@ -12,6 +12,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "smoke": "node scripts/smoke.mjs",
+    "loadtest:race": "node scripts/loadtest.mjs --race 20,50,100",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "loadtest": "node scripts/loadtest.mjs"
@@ -47,6 +50,7 @@
     "@types/node": "^26.6.5",
     "@types/supertest": "^7.2.1",
     "@types/swagger-ui-express": "^4.1.8",
+    "@vitest/coverage-v8": "^5.0.4",
     "autocannon": "^8.0.0",
     "eslint": "^9.39.5",
     "prisma": "^6.19.3",
