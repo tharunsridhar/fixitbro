@@ -53,8 +53,17 @@ Password for all of them is `Password123!`
 ```bash
 npm test
 ```
-- 68 tests across 9 files, run in CI on every push.
+- 100 tests across 13 files, run in CI on every push with lint and typecheck.
+- Coverage is about 93% of statements and 96% of lines (`npm run test:coverage`). CI fails if it drops below a floor.
 - Uses a separate `fixitbro_test` database and wipes it each run, so never point it at real data.
+- What the tests cover:
+  - Booking rules: slot generation, state machine, cancellation cutoff, idempotent retries, expiry of old pending requests.
+  - Concurrency: races of 8, 20 and 50 customers for one slot, overlapping slots, deadlock retries, and two server instances sharing one database.
+  - Access control: customer, provider and admin routes reject the wrong role, and other users' bookings look like 404.
+  - Admin and provider features, search, reviews, reports and notifications.
+- Checks beyond the unit tests, run from `server/`:
+  - `npm run smoke -- <url>` signs in the demo accounts, books a slot, gets the 409 for a second customer, accepts, and cancels. It also reports how long the first load took, so it works against the live demo.
+  - `npm run loadtest:race` runs the double-booking race. Add `--max-p95 <ms>` to fail on a latency budget. It refuses to target a remote URL unless you pass `--allow-remote`.
 
 ## How double booking is stopped
 - The server rechecks the slot when you book, and bookings for one provider are processed one at a time.

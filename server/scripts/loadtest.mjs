@@ -98,11 +98,26 @@ async function race(sizes) {
   for (const r of rows)
     console.log(`| ${r.sent} | ${r.succeeded} | ${r.rejected} | ${r.bookingsInSlot} | ${r.overlaps} | ${r.p50} | ${r.p95} |`);
   for (const r of rows) console.log(`N=${r.n} response codes:`, JSON.stringify(r.codes));
-  process.exit(rows.some((r) => r.overlaps !== 0 || r.succeeded !== 1) ? 1 : 0);
+  const budgetArg = process.argv.indexOf("--max-p95");
+  const budget = budgetArg === -1 ? Infinity : Number(process.argv[budgetArg + 1]);
+  const slow = rows.filter((r) => Number(r.p95) > budget);
+  if (slow.length) console.log(`FAIL: p95 over the ${budget} ms budget at N=${slow.map((r) => r.n).join(", ")}`);
+  const wrong = rows.some((r) => r.overlaps !== 0 || r.succeeded !== 1);
+  if (wrong) console.log("FAIL: expected exactly 1 booking and 0 overlaps in every run");
+  console.log(wrong || slow.length ? "RESULT: failed" : "RESULT: passed (1 winner, 0 overlaps in every run)");
+  process.exit(wrong || slow.length ? 1 : 0);
 }
 
 const raceArg = process.argv.indexOf("--race");
-if (raceArg !== -1) await race(process.argv[raceArg + 1].split(",").map(Number));
+if (raceArg !== -1) {
+  // The race registers up to N new accounts per run. Never do that to a public demo by accident.
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(base);
+  if (!local && !process.argv.includes("--allow-remote")) {
+    console.error(`Refusing to run the race against ${base}: it creates many accounts and bookings. Pass --allow-remote to override.`);
+    process.exit(2);
+  }
+  await race(process.argv[raceArg + 1].split(",").map(Number));
+}
 
 const cookie = await login("customer2@fixitbro.test");
 
