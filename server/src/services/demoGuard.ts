@@ -84,8 +84,10 @@ async function counts(): Promise<Record<Kind, number>> {
 /** Throws 503 SERVER_FULL when creating one more row of this kind would exceed its cap. */
 export async function assertCapacity(kind: Kind) {
   if (kind === "users") await cleanupIfDue();
-  const c = await counts();
-  if (c[kind] >= limits()[kind]) throw serverFull(FULL_MESSAGE);
+  // Count only the table being written to. This runs on every booking, so extra counts add up.
+  const count =
+    kind === "users" ? prisma.user.count() : kind === "bookings" ? prisma.booking.count() : prisma.service.count();
+  if ((await count) >= limits()[kind]) throw serverFull(FULL_MESSAGE);
 }
 
 let statusCache: {

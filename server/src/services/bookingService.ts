@@ -4,6 +4,7 @@ import { config } from "../config.js";
 import { prisma } from "../db.js";
 import { badRequest, conflict, forbidden, notFound, AppError } from "../lib/errors.js";
 import { computeSlots, isValidDate, localDate } from "../lib/slots.js";
+import { runExclusive } from "../lib/keyedQueue.js";
 import { assertCapacity } from "./demoGuard.js";
 import { BLOCKING, actorFor, checkTransition, type Action } from "../lib/stateMachine.js";
 
@@ -33,6 +34,8 @@ function fmt(d: Date, tz: string) {
   return DateTime.fromJSDate(d, { zone: tz }).toFormat("ccc d LLL, HH:mm");
 }
 
+type ServiceWithProvider = Prisma.ServiceGetPayload<{ include: { provider: { include: { user: true } } } }>;
+
 export async function availableSlots(serviceId: number, date: string) {
   if (!isValidDate(date)) throw badRequest("date must be YYYY-MM-DD");
   const service = await prisma.service.findUnique({
@@ -42,6 +45,11 @@ export async function availableSlots(serviceId: number, date: string) {
   if (!service || !service.active || service.provider.user.status !== "ACTIVE") {
     throw notFound("Service not found");
   }
+  return { service, timezone: service.provider.timezone, slots: await slotsFor(service, date) };
+}
+
+/** Free slots for an already loaded service, so createBooking does not fetch it a second time. */
+async function slotsFor(service: ServiceWithProvider, date: string) {
   const tz = service.provider.timezone;
   const dayStart = DateTime.fromISO(date, { zone: tz }).startOf("day");
   const [rules, exception, busy] = await Promise.all([
@@ -59,7 +67,7 @@ export async function availableSlots(serviceId: number, date: string) {
       select: { startAt: true, endAt: true },
     }),
   ]);
-  const slots = computeSlots({
+  return computeSlots({
     date,
     timezone: tz,
     rules,
@@ -69,7 +77,6 @@ export async function availableSlots(serviceId: number, date: string) {
     now: new Date(),
     stepMin: config.slotStepMinutes,
   });
-  return { service, timezone: tz, slots };
 }
 
 const BOOKING_LOCK_NS = 7001;
@@ -85,14 +92,22 @@ function isOverlapError(e: unknown) {
   return msg.includes("booking_no_overlap") || msg.includes("23P01");
 }
 
-export async function createBooking(args: {
+type CreateBookingArgs = {
   customerId: number;
   serviceId: number;
   startAt: Date;
   notes: string;
   idempotencyKey?: string;
-}): Promise<{ booking: Booking; replay: boolean }> {
-  await expireStale();
+};
+
+export function createBooking(args: CreateBookingArgs): Promise<{ booking: Booking; replay: boolean }> {
+  // Requests for the same service and start time wait in line here. The first one books; each
+  // later one answers 409 with a single cheap query instead of all running the full set of checks
+  // at the same moment. Overlaps at other start times are still settled by the database below.
+  return runExclusive(`booking:${args.serviceId}:${args.startAt.getTime()}`, () => createBookingNow(args));
+}
+
+async function createBookingNow(args: CreateBookingArgs): Promise<{ booking: Booking; replay: boolean }> {
   const { customerId, idempotencyKey } = args;
 
   const findReplay = async () =>
@@ -105,24 +120,46 @@ export async function createBooking(args: {
   const existing = await findReplay();
   if (existing) return { booking: existing, replay: true };
 
-  await assertCapacity("bookings");
-
   const now = new Date();
   if (args.startAt <= now) throw badRequest("Start time must be in the future");
   if (args.startAt.getTime() > now.getTime() + config.bookingHorizonDays * 86_400_000) {
     throw badRequest(`Bookings can be made up to ${config.bookingHorizonDays} days ahead`);
   }
 
+  // Shortcut for the common race: someone already holds a live booking at exactly this start time
+  // for a provider who owns this service. Any booking starting at the same moment overlaps, so the
+  // answer is 409 without running the full checks. Expired pending requests do not count here.
+  const taken = await prisma.booking.findFirst({
+    where: {
+      startAt: args.startAt,
+      provider: {
+        userId: { not: customerId },
+        user: { status: "ACTIVE" },
+        services: { some: { id: args.serviceId, active: true } },
+      },
+      OR: [
+        { status: { in: ["ACCEPTED", "IN_PROGRESS"] } },
+        { status: "PENDING", createdAt: { gte: new Date(Date.now() - config.pendingTtlMinutes * 60_000) } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (taken) throw conflict("That time slot is not available", "SLOT_UNAVAILABLE");
+
+  await expireStale();
+  await assertCapacity("bookings");
+
   const svc = await prisma.service.findUnique({
     where: { id: args.serviceId },
-    include: { provider: true },
+    include: { provider: { include: { user: true } } },
   });
   if (!svc) throw notFound("Service not found");
   if (svc.provider.userId === customerId) throw badRequest("You cannot book your own service");
+  if (!svc.active || svc.provider.user.status !== "ACTIVE") throw notFound("Service not found");
 
   // Server-side availability check. The frontend's slot list is never trusted.
   const date = localDate(args.startAt, svc.provider.timezone);
-  const { slots } = await availableSlots(svc.id, date);
+  const slots = await slotsFor(svc, date);
   if (!slots.some((s) => s.getTime() === args.startAt.getTime())) {
     throw conflict("That time slot is not available", "SLOT_UNAVAILABLE");
   }

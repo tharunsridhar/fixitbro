@@ -11,6 +11,7 @@
 - `availableSlots()` builds the free slots from working hours, days off and existing blocking bookings.
 - `createBooking()` re-runs it on the server for the exact start time. The frontend list is never trusted.
 - This gives a clean `409 SLOT_UNAVAILABLE` in the normal case and keeps the database out of the hot path.
+- Requests for the same service and start time also wait in line inside the server process (`src/lib/keyedQueue.ts`). The first one books. Each later one runs a single query, sees the live booking and answers `409`. This is only a speed-up under heavy contention. It does not replace the guards below, and it does nothing across several server processes.
 
 ### 2. The real guard: a PostgreSQL exclusion constraint
 - Defined in `server/prisma/migrations/*_init/migration.sql`:
