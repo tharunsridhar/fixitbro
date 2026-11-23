@@ -4,9 +4,10 @@
 
 A booking site for local services like plumbing, electrical work and cleaning. Customers pick a free time slot and book it. Providers set their working hours and accept jobs. Admins keep things in order.
 
-Live demo: https://fixitbro.onrender.com
+Live demo: https://fixitbro.onrender.com (offline right now, the free hosted database expired and is being replaced)
 
-It runs on free hosting, so the first load after a quiet period can take up to a minute. Sign in with the demo logins below.
+- It runs on free hosting, so when it is up the first load after a quiet period can take up to a minute.
+- Until it is back, run it locally with Docker or the steps under "Run it" below. The demo logins below work there too.
 
 ## What you can do
 - Customers: search services, book a slot, cancel, get notified, leave a review.
