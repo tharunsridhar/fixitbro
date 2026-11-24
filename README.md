@@ -12,6 +12,8 @@ Live demo: https://fixitbro.onrender.com (offline right now, the free hosted dat
 ## Demo
 Two customers go for the same slot: the second one is rejected with a 409, then the load test runs 20, 50 and 100 simultaneous requests at one slot (exactly 1 booking, 0 overlaps each time). The [full video](docs/demo/fixitbro-demo.webm) is in the repo, and `docs/demo/record.mjs` regenerates it.
 
+https://github.com/user-attachments/assets/fbc410c8-279d-4cde-8fc5-e45c4dee3a84
+
 ![FixItBro double-booking demo](docs/demo/fixitbro-demo.gif)
 
 ## What you can do
