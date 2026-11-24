@@ -4,8 +4,6 @@
 
 A booking site for local services like plumbing, electrical work and cleaning. Customers pick a free time slot and book it. Providers set their working hours and accept jobs. Admins keep things in order.
 
-There is no hosted demo right now. Watch the demo video below, or run it locally with Docker (see "Run it"). The demo logins below work there.
-
 ## Demo
 Two customers go for the same slot: the second one is rejected with a 409, then the load test runs 20, 50 and 100 simultaneous requests at one slot (exactly 1 booking, 0 overlaps each time). The [full video](docs/demo/fixitbro-demo.webm) is in the repo, and `docs/demo/record.mjs` regenerates it.
 
