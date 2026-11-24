@@ -1,0 +1,4 @@
+node_modules/
+frames/
+video-tmp/
+loadtest-output.txt

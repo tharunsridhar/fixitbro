@@ -9,6 +9,11 @@ Live demo: https://fixitbro.onrender.com (offline right now, the free hosted dat
 - It runs on free hosting, so when it is up the first load after a quiet period can take up to a minute.
 - Until it is back, run it locally with Docker or the steps under "Run it" below. The demo logins below work there too.
 
+## Demo
+Two customers go for the same slot: the second one is rejected with a 409, then the load test runs 20, 50 and 100 simultaneous requests at one slot (exactly 1 booking, 0 overlaps each time). The [full video](docs/demo/fixitbro-demo.webm) is in the repo, and `docs/demo/record.mjs` regenerates it.
+
+![FixItBro double-booking demo](docs/demo/fixitbro-demo.gif)
+
 ## What you can do
 - Customers: search services, book a slot, cancel, get notified, leave a review.
 - Providers: add services, set weekly hours and days off, accept or decline requests, mark jobs done.

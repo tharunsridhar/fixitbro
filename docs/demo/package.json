@@ -1,0 +1,13 @@
+{
+  "name": "fixitbro-demo",
+  "private": true,
+  "type": "module",
+  "description": "Records the FixItBro double-booking demo with Playwright (uses the installed Chrome)",
+  "scripts": {
+    "record": "node record.mjs",
+    "gif": "python make_gif.py"
+  },
+  "dependencies": {
+    "playwright": "^1.50.0"
+  }
+}
