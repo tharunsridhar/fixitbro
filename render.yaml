@@ -1,11 +1,7 @@
-# Render blueprint: one free web service built from the Dockerfile, plus a free Render Postgres
-# that is wired in automatically (no connection string to paste).
-# Note: Render deletes free databases 30 days after creation, so re-seed or move to Neon after that.
-databases:
-  - name: fixitbro-db
-    plan: free
-    databaseName: fixitbro
-    user: fixitbro
+# Render blueprint: one free web service built from the Dockerfile.
+# The database is a free Neon Postgres, because Render deletes free databases after 30 days.
+# After the first sync, set DATABASE_URL in the Render dashboard to the Neon connection string
+# (use the direct one, not the pooled one). The app runs migrations and loads demo data on start.
 
 services:
   - type: web
@@ -17,9 +13,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: fixitbro-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: COOKIE_SECURE
